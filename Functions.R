@@ -160,14 +160,3 @@ SBT <- function(files, db , scheme, dir_path = "."){
   return(MLST)
 }
 
-
-SBT <- function(files, db , scheme, dir_path = "."){
-  MLST <-doMLSTw(infiles = files,
-                 org = 'test',
-                 schemeFastas = db,
-                 write = "new",
-                 schemeProfile = scheme)
-  MLST$result
-  write.csv(MLST$result, file = file.path(dir_path, "MLSTar_results.csv"))
-  return(MLST)
-}
