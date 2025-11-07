@@ -30,11 +30,6 @@ head(sample_names)
 
 
 
-###### Seleccionar por muestra o por gen
-levels(as.factor(sample_names$gen))
-subset(sample_names, sample == "20450")
-subset(sample_names, sample %in% c("20450", "20421"))
-subset(sample_names, sample == "20450" & gen == "pro")$fa_file
 
 
 #Reescribir nombres de los alelos
@@ -63,9 +58,6 @@ fastaBD(ewgli = "./references/neu ewgli.txt",
               gen = "neu",
               output_dir = "./references")
 
-fastaBD(ewgli = "./references/neuAH ewgli.txt",
-              gen = "neuAH",
-              output_dir = "./references")
 
 fastaBD(ewgli = "./references/pil ewgli.txt",
               gen = "pil",
@@ -86,7 +78,6 @@ fafiles <- list.files(path = "./references",
 fafiles
 
 secuencias_20422 <- subset(sample_names, sample == "20422")$fa_file
-secuencias_20410
 scheme <- read.table("C:/Users/jaime/Desktop/TFM_Legionella/secuencias/scheme/st_profiles.txt",
                      header = TRUE)
 head(scheme)
@@ -113,12 +104,4 @@ doMLSTw(infiles = secuencias_20422,
         write = "new",
         schemeProfile = "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/scheme/st_profiles.txt")
 
-tipificacion(seq = "./fastas/AF4440+20400flaR+M13.fa",
-                 db = "./references/fla.fas")
-
-makeblastdb("C:/Users/jaime/Desktop/TFM_Legionella/secuencias/neu ewgli.txt")
-
-db_files <- list.files(path = ".", full.names = TRUE, pattern = "\\.txt$")
-db_files
-db <- makeblastdb("./references/fla.fas")
 
