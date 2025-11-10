@@ -3,7 +3,8 @@ library(xlsx)
 library(MLSTar)
 library(Biostrings)
 library(dplyr)
-
+library(stringr)
+library(tibble)
 
 createSampleTable <- function(dir_path = ".",
                            ab1files = list.files(path = "C:/Users/jaime/Desktop/TFM_Legionella/secuencias",
@@ -128,6 +129,52 @@ ab1tofasta <- function(abDir = ".",
   }
 
   return(paste("Las", num_fa, "secuencias .fa están en el directorio", newDir))
+}
+
+
+sample_multifasta <- function(sample_table, col_sample = "sample", col_route= "fa_file", dir_path = ".", out_dir = "."){
+  if (!dir.exists(out_dir)) {
+    dir.create(path = out_dir, recursive = FALSE, showWarnings = FALSE)
+    cat("Directorio", out_dir, "creado", "\n")
+  }
+  else{
+    cat("Directorio", out_dir, "ya existe, continuando...", "\n")
+  }
+  grouped_samples <- sample_table %>%
+    group_by(!!sym(col_sample)) %>%
+    summarise(
+      fa_file = list(!!sym(col_route)),
+      .groups = "drop"
+    )
+
+  for (i in 1:nrow(grouped_samples)){
+    id <- grouped_samples[[col_sample]][i]
+    routes <- unlist(grouped_samples$fa_file[i])
+    seq_sample <- list()
+
+    for (route in routes){
+      if (file.exists(route)){
+        seq_1 <- readDNAStringSet(filepath = route)
+        seq_sample <- c(seq_sample, seq_1)
+      } else {
+        warning("Archivo no encontrado en la ruta", route)
+      }
+    }
+
+    if (length(seq_sample) > 0 ) {
+      all_seq <- do.call(c, seq_sample)
+
+      out_file <- paste0(out_dir,"/",id,".fasta")
+      writeXStringSet(
+        x = all_seq,
+        filepath = out_file,
+        format = "fasta"
+      )
+      message(paste("Archivo creado con éxito para", id, "en", out_file))
+    } else {
+      warning(paste("No se encontraron secuencias válidas para la muestra:", id))
+    }
+  }
 }
 
 
