@@ -5,11 +5,24 @@ library(Biostrings)
 library(dplyr)
 library(stringr)
 library(tibble)
+library(sangerseqR)
 
-createSampleTable <- function(dir_path = ".",
-                           ab1files = list.files(path = "C:/Users/jaime/Desktop/TFM_Legionella/secuencias",
-                                                 full.names = TRUE,
-                                                 pattern = "\\.ab1$") ){
+
+###-------Create a sample table of available .ab1 files--------------
+createSampleTable <- function(dir_path = "."){
+
+  if(!dir.exists(dir_path)){
+    stop("Directory not found")
+  }
+
+  ab1files <- list.files(path = dir_path,
+                        full.names = TRUE,
+                        pattern = "\\.ab1$")
+
+  if (length(ab1files) == 0){
+    stop("Not files found in the selected directory")
+  }
+
   genes <- c("fla", "pil", "asd", "mip", "momp", "pro", "neu")
   ab1names <- basename(ab1files)
   ab1route <- normalizePath(ab1files, winslash = "/")
@@ -68,22 +81,30 @@ createSampleTable <- function(dir_path = ".",
       )
     )
   }
+  sample_table["fa_file"] <- paste0(dirname(sample_table$ab1_file), "/fastas/",
+                                    stringr::str_replace(basename(sample_table$ab1_file),
+                                                         pattern = ".ab1",
+                                                         replacement = ".fa"))
+  sample_table <- sample_table %>% relocate(fa_file, .after = 1)
 
+  if(any(is.na(sample_table)) == TRUE){
+    message("La tabla contiene celdas en blanco")
+  }
 
-  output_name <- ("sample_table_ab1.xlsx")
+  output_name <- paste0(basename(dir_path), "_sample_table.xlsx")
   output_path <- file.path(dir_path, output_name)
-
   write.xlsx(sample_table, output_path, col.names = TRUE, row.names = FALSE)
 
   return(sample_table)
 }
 
 
-
-ab1tofasta <- function(abDir = ".",
-                       newDir = "./fastas",
-                       table_samples = sample_names){
-  ab1 = list.files(path = "abDir", full.names = FALSE, pattern = "\\.ab1$")
+###------------------Convert .ab1 files to .fasta-------------------------------
+ab1tofasta <- function(dir_path = ".",
+                       table_samples = sample_names
+                       ){
+  newDir <- file.path(dir_path, "fastas")
+  ab1 <- list.files(path = dir_path, full.names = FALSE, pattern = "\\.ab1$")
 
   if (!dir.exists(newDir)) {
     dir.create(path = newDir, recursive = FALSE, showWarnings = FALSE)
@@ -111,15 +132,16 @@ ab1tofasta <- function(abDir = ".",
     sanger_read <- SangerRead(readFeature = orien,
                               readFileName = file,
                               geneticCode = GENETIC_CODE,
-                              TrimmingMethod = "M1",
-                              M1TrimmingCutoff = 0.0001,
+                              TrimmingMethod = "M2",
+                              M1TrimmingCutoff = 0,
                               showTrimmed = TRUE)
+
     fa <- writeFasta(sanger_read,
                      outputDir = newDir,
                      compress = FALSE)
     cat("Archivo FASTA creado:", basename(fa), "\n")
   }
-  num_ab1 <- length(list.files(path = abDir, pattern = "\\.ab1$", full.names = TRUE))
+  num_ab1 <- length(list.files(path = dir_path, pattern = "\\.ab1$", full.names = TRUE))
   num_fa <- length(list.files(path = newDir, pattern = "\\.fa$", full.names = TRUE))
 
   if (num_ab1 == num_fa) {
@@ -132,6 +154,8 @@ ab1tofasta <- function(abDir = ".",
 }
 
 
+
+###--------------------Join genes from the same sample into a multifasta--------
 sample_multifasta <- function(sample_table, col_sample = "sample", col_route= "fa_file", dir_path = ".", out_dir = "."){
   if (!dir.exists(out_dir)) {
     dir.create(path = out_dir, recursive = FALSE, showWarnings = FALSE)
@@ -177,7 +201,15 @@ sample_multifasta <- function(sample_table, col_sample = "sample", col_route= "f
   }
 }
 
+###-------Add .fasta paths to the table-----------------------------
+sample_names["fa_file"] <- paste0(dirname(sample_names$ab1_file), "/fastas/",
+                                  stringr::str_replace(basename(sample_names$ab1_file),
+                                                       pattern = ".ab1",
+                                                       replacement = ".fa"))
+sample_names <- sample_names %>% relocate(fa_file, .after = 1)
 
+
+###-------Adapt reference alelles txt to fas for DB creation---------
 fastaBD <- function(ewgli, gen, output_dir = "."){
 
   sequ <- readDNAStringSet(ewgli)
@@ -196,14 +228,74 @@ fastaBD <- function(ewgli, gen, output_dir = "."){
   cat(output_filename, "guardado en", output_path, "\n")
 }
 
+
+bd_asd <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/asd.fas"
+bd_fla <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/fla.fas"
+bd_mip <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/mip.fas"
+bd_momp <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/momp.fas"
+bd_neu <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/neu.fas"
+bd_pil <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/pil.fas"
+bd_pro <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/pro.fas"
+
+
+###-------Create profile for selected gene--------------------------------------
+createSchemes <- function(dir_path = ".", ref_genes){
+  out_dir <- paste0(dir_path,"/schemes")
+  ref_dir <- paste0(dir_path,"/references/")
+  if (!dir.exists(out_dir)) {
+    dir.create(path = out_dir, recursive = FALSE, showWarnings = FALSE)
+    cat("Directorio", out_dir, "creado", "\n")
+  }
+  else{
+    cat("Directorio", out_dir, "ya existe, continuando...", "\n")
+  }
+
+  for (i in ref_genes){
+    namefas <- paste0(i,".fas")
+    ref_route<- list.files(path = ref_dir, full.names = TRUE, pattern = namefas)
+    fasta <- readDNAStringSet(ref_route)
+    head_gene <- names(fasta)
+    num_gene <- str_split_i(head_gene, "_", 2)
+    scheme <- data.frame(ST = seq_along(num_gene))
+    scheme[i] <- num_gene
+    print(scheme)
+    write.table(scheme, file = paste0(out_dir,"/", i, "_profile.txt"), sep = "\t")
+  }
+}
+
+
+###-------Perform SBT-----------------------------------------------------------
 SBT <- function(files, db , scheme, dir_path = "."){
+
+  if (dir.exists("pubmlst_test_1")) {
+    unlink("pubmlst_test_1", recursive = TRUE)
+  }
+  if (dir.exists("alleles_test_1")) {
+    unlink("alleles_test_1", recursive = TRUE)
+  }
+
   MLST <-doMLSTw(infiles = files,
                  org = 'test',
                  schemeFastas = db,
-                 write = "new",
-                 schemeProfile = scheme)
+                 write = "none",
+                 schemeProfile = scheme,
+                 pid = 100L,
+                 scov = 0.1)
   MLST$result
   write.csv(MLST$result, file = file.path(dir_path, "MLSTar_results.csv"))
   return(MLST)
 }
 
+
+###-------Visualize best alignment----------------------------------------------
+view_align <- function(files, db){
+  cmd <- paste(
+    "blastn -query",
+    seq,
+    "-db",
+    db,
+    " -outfmt  \"3 pident gaps \"",
+    "-max_target_seqs 1 "
+  )
+  system(cmd)
+}
