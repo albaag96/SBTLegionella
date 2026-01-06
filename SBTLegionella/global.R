@@ -1,5 +1,6 @@
 library(sangeranalyseR)
 library(xlsx)
+library(openxlsx)
 library(MLSTar)
 library(Biostrings)
 library(dplyr)
@@ -93,7 +94,7 @@ createSampleTable <- function(dir_path = "."){
 
   output_name <- paste0(basename(dir_path), "_sample_table.xlsx")
   output_path <- file.path(dir_path, output_name)
-  write.xlsx(sample_table, output_path, col.names = TRUE, row.names = FALSE)
+  openxlsx::write.xlsx(sample_table, output_path, overwrite = TRUE, col.names = TRUE, row.names = FALSE)
 
   return(sample_table)
 }
@@ -132,8 +133,9 @@ ab1tofasta <- function(dir_path = ".",
     sanger_read <- SangerRead(readFeature = orien,
                               readFileName = file,
                               geneticCode = GENETIC_CODE,
-                              TrimmingMethod = "M2",
-                              M1TrimmingCutoff = 0,
+                              TrimmingMethod = "M1",
+                              M1TrimmingCutoff = 1,
+                              signalRatioCutoff     = 0.33,
                               showTrimmed = TRUE)
 
     fa <- writeFasta(sanger_read,
@@ -279,8 +281,8 @@ SBT <- function(files, db , scheme, dir_path = "."){
                  schemeFastas = db,
                  write = "none",
                  schemeProfile = scheme,
-                 pid = 100L,
-                 scov = 0.1)
+                 pid = 90L,
+                 scov = 0.9)
   MLST$result
   write.csv(MLST$result, file = file.path(dir_path, "MLSTar_results.csv"))
   return(MLST)
@@ -288,14 +290,14 @@ SBT <- function(files, db , scheme, dir_path = "."){
 
 
 ###-------Visualize best alignment----------------------------------------------
-view_align <- function(files, db){
+view_align <- function(file, db){
   cmd <- paste(
-    "blastn -query",
-    seq,
-    "-db",
-    db,
-    " -outfmt  \"3 pident gaps \"",
-    "-max_target_seqs 1 "
+    "blastn",
+    "-query", shQuote(file),
+    "-subject", shQuote(db),
+    "-outfmt 0",
+    "-max_target_seqs 1"
   )
-  system(cmd)
+
+  system(cmd, intern = TRUE)
 }

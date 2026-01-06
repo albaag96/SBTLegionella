@@ -87,8 +87,8 @@ function(input, output, session) {
 
     for (i in selected_genes){
       data_gene <- selected_data[selected_data$gene == i, ]
-      fastas <- data_gene[,2]
-      samples <- data_gene[,4]
+      fastas <- data_gene$fa_file
+      samples <- data_gene$sample
 
       db <- list.files(path = paste0(".", "/references"),
                                full.names = TRUE,
@@ -138,6 +138,15 @@ function(input, output, session) {
     datatable(sbt_results())
   })
 
+  output$download_sbt <- downloadHandler(
+    filename = function() {
+      paste0(basename(dir_path()), "_sbt_results.xlsx")
+    },
+    content = function(file) {
+      openxlsx::write.xlsx(sbt_results(), file)
+    }
+  )
+
 
 
   chrom_data <- eventReactive(input$do_chromatograph, {
@@ -163,7 +172,63 @@ function(input, output, session) {
 
     ab <- readsangerseq(file_path)
     ab_c <- makeBaseCalls(ab, ratio = 0.33)
-    chromatogram(ab_c, showcalls = "both", showhets = TRUE)
+    chromatogram(ab_c,
+                 showcalls = "both",
+                 showhets = TRUE,
+                 width = 100,
+                 height = 10,
+                 cex.mtext = 1,
+                 cex.base = 10)
+  })
+
+  alignment_data <- eventReactive(input$do_alignment, {
+
+    data <- filtered_data()
+    selected_rows <- input$table_rows_selected
+
+    if (length(selected_rows) != 1) {
+      showNotification(
+        "Seleccione una única secuencia para ver el alineamiento.",
+        type = "error"
+      )
+      return(NULL)
+    }
+
+    row <- data[selected_rows, ]
+    fasta <- row$fa_file
+    gene <- row$gene
+
+    ref_db <- list.files(
+      path = "./references",
+      full.names = TRUE,
+      pattern = paste0(gene, "\\.fas$")
+    )
+
+    if (length(ref_db) == 0) {
+      showNotification(
+        "No se encontró la secuencia de referencia para el gen seleccionado.",
+        type = "error"
+      )
+      return(NULL)
+    }
+    ref_file <- ref_db[1]
+
+    aln <- view_align(
+      file = fasta,
+      db = ref_file
+    )
+
+    return(aln)
+  })
+
+  output$plot_alignment <- renderUI({
+    req(alignment_data())
+
+    HTML(paste0(
+      "<pre style='font-family: monospace; font-size: 13px;'>",
+      paste(alignment_data(), collapse = "\n"),
+      "</pre>"
+    ))
   })
 
 }

@@ -334,8 +334,8 @@ vmatchPattern(db, seq)
 
 
 
-db <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/pro"
-seq <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/fastas/AF4441+20400proR+M13.fa"
+db <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/references/mip"
+seq <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/fastas/AF4437+20412mipF+M13.fa"
 
 comando <- paste(
   "blastn -query",
@@ -354,3 +354,23 @@ chromatogram(b1, width = 500,
              height = NA,
 )
 b1 <- makeBaseCalls(a1, ratio = 0.33)
+
+seq1 <- "C:/Users/jaime/Desktop/TFM_Legionella/secuencias/AJ6519+20410pilF+M13F.ab1"
+
+sread <- SangerRead(readFeature           = "Forward Read",
+                    readFileName          = seq1,
+                    geneticCode           = GENETIC_CODE,
+                    TrimmingMethod        = "M1",
+                    M1TrimmingCutoff      = 1,
+                    M2CutoffQualityScore  = NULL,
+                    M2SlidingWindowSize   = NULL,
+                    baseNumPerRow         = 100,
+                    heightPerRow          = 200,
+                    signalRatioCutoff     = 0.2,
+                    showTrimmed           = TRUE)
+qualityBasePlot(sread)
+
+seq2 <- readsangerseq("C:/Users/jaime/Desktop/TFM_Legionella/secuencias/AF4437+20412mipF+M13.ab1")
+seq21 <- makeBaseCalls(seq2)
+seq21
+PolyPeakParser()
